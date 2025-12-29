@@ -10,6 +10,7 @@
 
 | Version | Date | Changes |
 |---------|------|----------|
+| 1.1.0 | Dec 29, 2025 | LinkedIn OIDC OAuth integration complete. Verified profiles now supported. |
 | 1.0.0 | Dec 29, 2025 | Initial GitHub push. Removed 91KB legacy code. Established as single source of truth. |
 
 ---
@@ -182,7 +183,7 @@ erDiagram
 - [ ] **Refund Handling** — Cancellation policies
 
 ### 2.3 Trust & Verification
-- [/] **LinkedIn OAuth** — One-click "Continue with LinkedIn" for verified identity
+- [x] **LinkedIn OAuth** — One-click "Continue with LinkedIn" for verified identity ✅
 - [ ] **Verified Badge** — Display on profiles and listings
 - [ ] **Review System** — Post-meeting ratings (both sides)
 
