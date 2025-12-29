@@ -16,11 +16,28 @@ type View = 'home' | 'onboarding' | 'marketplace' | 'executive' | 'investor' | '
 function isProfileComplete(profile: any): boolean {
   if (!profile) return false;
   const metadata = profile.metadata || {};
-  // Check for job title in metadata or as direct field
+
+  // If explicitly marked complete via conversational flow, trust it
+  if (metadata.profileCompleted === true) {
+    return true;
+  }
+
+  // Check for job title
   const hasJobTitle = metadata.jobTitle || profile.job_title;
+  // Check for company
   const hasCompany = profile.company && profile.company.trim() !== '';
-  const hasInterests = metadata.interests && metadata.interests.length > 0;
-  return hasJobTitle && hasCompany && hasInterests;
+  // Check for any context (interests OR context OR productOffering)
+  const hasContext = (metadata.interests && metadata.interests.length > 0) ||
+    (metadata.context && metadata.context.trim() !== '') ||
+    (metadata.productOffering);
+
+  // HUNTER needs less strict requirements
+  if (profile.role === 'HUNTER') {
+    return hasCompany || hasJobTitle || hasContext;
+  }
+
+  // SIGNAL needs job title + company + some context
+  return hasJobTitle && hasCompany && hasContext;
 }
 
 function AppContent() {

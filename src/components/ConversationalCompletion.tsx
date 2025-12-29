@@ -38,15 +38,24 @@ interface ProfileCardProps {
 }
 
 function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardProps) {
-    // Calculate completion percentage
-    const fields = [
-        !!data.fullName || !!userName,
-        !!data.jobTitle,
-        !!data.company,
-        !!data.industries?.length,
-        !!(data.interests?.length || data.context),
-        !!data.techStack?.length,
-    ];
+    // Calculate completion percentage - role aware
+    const fields = userRole === 'HUNTER'
+        ? [
+            !!data.fullName || !!userName,
+            !!data.jobTitle,
+            !!data.company,
+            !!data.productOffering,
+            !!(data.targetIndustry || data.industries?.length),
+            !!(data.context || data.interests?.length),
+        ]
+        : [
+            !!data.fullName || !!userName,
+            !!data.jobTitle,
+            !!data.company,
+            !!data.industries?.length,
+            !!(data.interests?.length || data.context),
+            !!data.techStack?.length,
+        ];
     const completedFields = fields.filter(Boolean).length;
     const completionPercent = Math.round((completedFields / fields.length) * 100);
 
@@ -170,14 +179,23 @@ function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardPr
                 {/* Divider */}
                 <div className="border-t border-zinc-100 my-4" />
 
-                {/* Focus Areas */}
+                {/* Product/Focus Areas - role aware */}
                 <div className="mb-4">
                     <div className="flex items-center gap-1 text-xs font-medium text-zinc-500 uppercase mb-2">
                         <Target className="w-3 h-3" />
-                        Focus Areas
+                        {userRole === 'HUNTER' ? 'What You Sell' : 'Focus Areas'}
                     </div>
                     <AnimatePresence mode="popLayout">
-                        {data.interests?.length ? (
+                        {/* For HUNTER: show productOffering or interests */}
+                        {userRole === 'HUNTER' && data.productOffering ? (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-sm text-zinc-700"
+                            >
+                                {data.productOffering}
+                            </motion.p>
+                        ) : data.interests?.length ? (
                             <motion.div className="flex flex-wrap gap-1">
                                 {data.interests.map((interest, i) => (
                                     <motion.span
@@ -195,34 +213,61 @@ function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardPr
                                 ))}
                             </motion.div>
                         ) : (
-                            <p className="text-xs text-zinc-300 italic">Tell me what you're focused on...</p>
+                            <p className="text-xs text-zinc-300 italic">
+                                {userRole === 'HUNTER' ? 'What do you sell?' : 'Tell me what you\'re focused on...'}
+                            </p>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* Tech Stack */}
+                {/* Target Market (HUNTER) or Tech Stack (SIGNAL) */}
                 <div className="mb-4">
                     <div className="flex items-center gap-1 text-xs font-medium text-zinc-500 uppercase mb-2">
                         <Cpu className="w-3 h-3" />
-                        Tech Stack
+                        {userRole === 'HUNTER' ? 'Target Market' : 'Tech Stack'}
                     </div>
                     <AnimatePresence mode="popLayout">
-                        {data.techStack?.length ? (
-                            <motion.div className="flex flex-wrap gap-1">
-                                {data.techStack.map((tech, i) => (
-                                    <motion.span
-                                        key={tech}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
-                                    >
-                                        {tech}
-                                    </motion.span>
-                                ))}
-                            </motion.div>
+                        {userRole === 'HUNTER' ? (
+                            // HUNTER: show target industry/company size
+                            data.targetIndustry || data.targetCompanySize ? (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex flex-wrap gap-1"
+                                >
+                                    {data.targetIndustry && (
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                            {data.targetIndustry}
+                                        </span>
+                                    )}
+                                    {data.targetCompanySize && (
+                                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                            {data.targetCompanySize}
+                                        </span>
+                                    )}
+                                </motion.div>
+                            ) : (
+                                <p className="text-xs text-zinc-300 italic">Who do you typically sell to?</p>
+                            )
                         ) : (
-                            <p className="text-xs text-zinc-300 italic">Technologies you use...</p>
+                            // SIGNAL: show tech stack
+                            data.techStack?.length ? (
+                                <motion.div className="flex flex-wrap gap-1">
+                                    {data.techStack.map((tech, i) => (
+                                        <motion.span
+                                            key={tech}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: i * 0.1 }}
+                                            className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
+                                        >
+                                            {tech}
+                                        </motion.span>
+                                    ))}
+                                </motion.div>
+                            ) : (
+                                <p className="text-xs text-zinc-300 italic">Technologies you use...</p>
+                            )
                         )}
                     </AnimatePresence>
                 </div>
@@ -388,6 +433,7 @@ export function ConversationalCompletion({
                     full_name: extractedData.fullName || userName,
                     company: extractedData.company || '',
                     metadata: {
+                        // Common fields
                         jobTitle: extractedData.jobTitle,
                         industry: extractedData.industries?.[0] || extractedData.companyIndustry,
                         interests: extractedData.interests || [],
@@ -395,6 +441,11 @@ export function ConversationalCompletion({
                         customTopics: extractedData.customTopics || [],
                         context: extractedData.context || '',
                         buyingStage: extractedData.buyingStage,
+                        // HUNTER-specific fields
+                        productOffering: extractedData.productOffering,
+                        targetIndustry: extractedData.targetIndustry,
+                        targetCompanySize: extractedData.targetCompanySize,
+                        // Completion markers
                         profileCompleted: true,
                         completedAt: new Date().toISOString(),
                         completedVia: 'conversational',
