@@ -5,7 +5,7 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { MarketplaceFeed } from './components/MarketplaceFeed';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { InvestorPage } from './components/InvestorPage';
-import { ProfileCompletion } from './components/ProfileCompletion';
+import { ConversationalCompletion } from './components/ConversationalCompletion';
 import { AuthProvider, useAuth } from './components/AuthProvider';
 import { supabase } from './lib/supabase';
 import './index.css';
@@ -145,7 +145,7 @@ function AppContent() {
       )}
       {/* Profile Completion - shown after OAuth for incomplete profiles */}
       {view === 'complete-profile' && user && profile && (
-        <ProfileCompletion
+        <ConversationalCompletion
           userId={user.id}
           userEmail={user.email || ''}
           userName={profile.full_name || user.user_metadata?.full_name || 'there'}
