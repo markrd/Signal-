@@ -26,9 +26,9 @@ export function ProfileFreshness({ lastUpdated, onUpdateClick, compact = false }
 
     // Determine freshness status
     const getFreshnessStatus = () => {
-        if (daysSinceUpdate <= 7) return 'fresh';
-        if (daysSinceUpdate <= 30) return 'aging';
-        return 'stale';
+        if (daysSinceUpdate <= 30) return 'fresh';      // Up to 1 month
+        if (daysSinceUpdate <= 90) return 'aging';      // 1-3 months
+        return 'stale';                                  // 3+ months
     };
 
     const status = getFreshnessStatus();
@@ -123,10 +123,10 @@ export function ProfileFreshness({ lastUpdated, onUpdateClick, compact = false }
                                 animate={{ width: `${Math.max(5, 100 - (daysSinceUpdate * 2))}%` }}
                                 transition={{ duration: 0.5 }}
                                 className={`h-full rounded-full ${status === 'fresh'
-                                        ? 'bg-emerald-500'
-                                        : status === 'aging'
-                                            ? 'bg-amber-500'
-                                            : 'bg-red-500'
+                                    ? 'bg-emerald-500'
+                                    : status === 'aging'
+                                        ? 'bg-amber-500'
+                                        : 'bg-red-500'
                                     }`}
                             />
                         </div>
