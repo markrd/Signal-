@@ -6,6 +6,7 @@ import { MarketplaceFeed } from './components/MarketplaceFeed';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { InvestorPage } from './components/InvestorPage';
 import { AuthProvider, useAuth } from './components/AuthProvider';
+import { supabase } from './lib/supabase';
 import './index.css';
 
 type View = 'home' | 'onboarding' | 'marketplace' | 'executive' | 'investor';
@@ -14,6 +15,61 @@ function AppContent() {
   const { user, profile, loading, signOut } = useAuth();
   const [view, setView] = useState<View>('home');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [oauthCompleting, setOauthCompleting] = useState(false);
+
+  // Handle OAuth callback from LinkedIn
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.get('oauth') === 'linkedin' && user) {
+        setOauthCompleting(true);
+
+        try {
+          // Get saved onboarding data from before OAuth redirect
+          const savedRole = localStorage.getItem('signal_onboarding_role');
+          const savedDataStr = localStorage.getItem('signal_onboarding_data');
+          const savedData = savedDataStr ? JSON.parse(savedDataStr) : {};
+
+          // Extract profile data from OAuth user metadata
+          const { user_metadata } = user;
+          const fullName = user_metadata?.full_name || user_metadata?.name || '';
+          const avatarUrl = user_metadata?.picture || '';
+
+          // Create profile with verified status
+          const { error: profileError } = await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            role: savedRole || savedData.role || 'HUNTER',
+            full_name: fullName,
+            company: savedData.company || '',
+            verified: true,
+            metadata: {
+              ...savedData.metadata,
+              linkedInVerified: true,
+              avatarUrl: avatarUrl,
+            },
+          });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+
+          // Clear localStorage and URL params
+          localStorage.removeItem('signal_onboarding_role');
+          localStorage.removeItem('signal_onboarding_data');
+          window.history.replaceState({}, '', window.location.pathname);
+
+        } catch (err) {
+          console.error('OAuth completion error:', err);
+        } finally {
+          setOauthCompleting(false);
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, [user]);
 
   // Redirect based on user role
   useEffect(() => {
@@ -37,10 +93,14 @@ function AppContent() {
     setShowLoginModal(false);
   };
 
-  if (loading) {
+  if (loading || oauthCompleting) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-pulse text-zinc-400 font-bold">Loading...</div>
+        <div className="text-center">
+          <div className="animate-pulse text-zinc-400 font-bold">
+            {oauthCompleting ? 'Completing LinkedIn verification...' : 'Loading...'}
+          </div>
+        </div>
       </div>
     );
   }
