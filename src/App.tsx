@@ -5,11 +5,23 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { MarketplaceFeed } from './components/MarketplaceFeed';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { InvestorPage } from './components/InvestorPage';
+import { ProfileCompletion } from './components/ProfileCompletion';
 import { AuthProvider, useAuth } from './components/AuthProvider';
 import { supabase } from './lib/supabase';
 import './index.css';
 
-type View = 'home' | 'onboarding' | 'marketplace' | 'executive' | 'investor';
+type View = 'home' | 'onboarding' | 'marketplace' | 'executive' | 'investor' | 'complete-profile';
+
+// Check if profile has required fields completed
+function isProfileComplete(profile: any): boolean {
+  if (!profile) return false;
+  const metadata = profile.metadata || {};
+  // Check for job title in metadata or as direct field
+  const hasJobTitle = metadata.jobTitle || profile.job_title;
+  const hasCompany = profile.company && profile.company.trim() !== '';
+  const hasInterests = metadata.interests && metadata.interests.length > 0;
+  return hasJobTitle && hasCompany && hasInterests;
+}
 
 function AppContent() {
   const { user, profile, loading, signOut } = useAuth();
@@ -71,9 +83,14 @@ function AppContent() {
     handleOAuthCallback();
   }, [user]);
 
-  // Redirect based on user role
+  // Redirect based on user role and profile completion status
   useEffect(() => {
     if (user && profile && (view === 'home' || view === 'marketplace' || view === 'executive')) {
+      // Check if profile needs completion
+      if (!isProfileComplete(profile)) {
+        setView('complete-profile');
+        return;
+      }
       // Route based on role
       if (profile.role === 'SIGNAL') {
         setView('executive');
@@ -125,6 +142,19 @@ function AppContent() {
       )}
       {view === 'investor' && (
         <InvestorPage onBack={() => setView('home')} />
+      )}
+      {/* Profile Completion - shown after OAuth for incomplete profiles */}
+      {view === 'complete-profile' && user && profile && (
+        <ProfileCompletion
+          userId={user.id}
+          userEmail={user.email || ''}
+          userName={profile.full_name || user.user_metadata?.full_name || 'there'}
+          userRole={profile.role as 'SIGNAL' | 'HUNTER'}
+          onComplete={() => {
+            // Force refetch profile and redirect
+            window.location.reload();
+          }}
+        />
       )}
       {/* Hunter view - Marketplace */}
       {view === 'marketplace' && user && profile?.role === 'HUNTER' && (
