@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Building2, Sparkles, Loader2, CheckCircle, Target } from 'lucide-react';
-import { StepContainer, InputField, ChipGrid, StepNavButtons, ProgressBar } from './onboarding/primitives';
+import { AnimatePresence } from 'framer-motion';
+import { Briefcase, Sparkles, Loader2, CheckCircle, Target } from 'lucide-react';
+import { StepContainer, InputField, StepNavButtons, ProgressBar } from './onboarding/primitives';
 import type { Role } from './onboarding/primitives';
 import { supabase } from '../lib/supabase';
 
@@ -25,18 +25,6 @@ interface CompletionData {
     interests: string[];
     techStack: string[];
 }
-
-const INTEREST_OPTIONS = [
-    'AI/ML', 'Cloud', 'Security', 'DevOps', 'Data',
-    'Mobile', 'SaaS', 'Fintech', 'Healthcare', 'E-commerce',
-    'Enterprise', 'Startup'
-];
-
-const TECH_OPTIONS = [
-    'AWS', 'GCP', 'Azure', 'Kubernetes', 'Docker',
-    'React', 'Node.js', 'Python', 'Go', 'Java',
-    'PostgreSQL', 'MongoDB', 'Snowflake', 'Databricks'
-];
 
 export function ProfileCompletion({
     userId,
@@ -231,29 +219,49 @@ function Step1Professional({ data, onUpdate, onContinue, role }: StepProps) {
 // =============================================================================
 
 function Step2Focus({ data, onUpdate, onContinue, onBack, role }: StepProps) {
-    const isValid = data.interests.length > 0;
+    const [focusText, setFocusText] = useState(data.interests.join(', '));
+
+    const handleContinue = () => {
+        // Parse comma-separated interests
+        const interests = focusText
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+        onUpdate({ interests });
+        onContinue();
+    };
+
+    const isValid = focusText.trim().length > 0;
 
     return (
         <StepContainer
-            title={role === 'SIGNAL' ? "What are you focused on?" : "What solutions do you offer?"}
+            title={role === 'SIGNAL' ? "What are you focused on right now?" : "What solutions do you offer?"}
             subtitle={role === 'SIGNAL'
-                ? "Select areas you're actively exploring or investing in"
-                : "Select categories that match your product/service"
+                ? "Tell us about technologies, vendors, or initiatives you're exploring"
+                : "Describe your product category and ideal customer problems"
             }
             icon={<Target className="w-8 h-8 text-white" />}
         >
-            <ChipGrid
-                options={INTEREST_OPTIONS}
-                selected={data.interests}
-                onChange={(v) => onUpdate({ interests: v })}
-                columns={3}
-                role={role}
-                allowCustom
-            />
+            <div className="space-y-4">
+                <textarea
+                    value={focusText}
+                    onChange={(e) => setFocusText(e.target.value)}
+                    placeholder={role === 'SIGNAL'
+                        ? "e.g., Evaluating AI copilots for our dev team, looking at data observability tools, considering migrating from on-prem to cloud..."
+                        : "e.g., We help mid-market SaaS companies reduce churn through predictive analytics and customer health scoring..."
+                    }
+                    className="w-full h-32 px-4 py-3 border-2 border-zinc-200 rounded-xl text-zinc-900 
+                               outline-none focus:border-emerald-500 transition-all resize-none"
+                    autoFocus
+                />
+                <p className="text-sm text-zinc-500">
+                    💡 Be specific — this helps us match you with the right {role === 'SIGNAL' ? 'vendors' : 'executives'}
+                </p>
+            </div>
 
             <StepNavButtons
                 onBack={onBack}
-                onContinue={onContinue}
+                onContinue={handleContinue}
                 continueDisabled={!isValid}
                 role={role}
             />
@@ -276,20 +284,43 @@ interface Step3Props {
 }
 
 function Step3TechStack({ data, onUpdate, onSubmit, onBack, role, isSubmitting, error }: Step3Props) {
+    const [techText, setTechText] = useState(data.techStack.join(', '));
+
+    const handleSubmit = () => {
+        // Parse comma-separated tech stack
+        const techStack = techText
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+        onUpdate({ techStack });
+        onSubmit();
+    };
+
     return (
         <StepContainer
             title={role === 'SIGNAL' ? "Your tech environment" : "Technologies you work with"}
-            subtitle="Select technologies relevant to your work"
+            subtitle={role === 'SIGNAL'
+                ? "What's in your current stack? This helps vendors understand your context."
+                : "What technologies does your product integrate with or support?"
+            }
             icon={<Sparkles className="w-8 h-8 text-white" />}
         >
-            <ChipGrid
-                options={TECH_OPTIONS}
-                selected={data.techStack}
-                onChange={(v) => onUpdate({ techStack: v })}
-                columns={4}
-                role={role}
-                allowCustom
-            />
+            <div className="space-y-4">
+                <textarea
+                    value={techText}
+                    onChange={(e) => setTechText(e.target.value)}
+                    placeholder={role === 'SIGNAL'
+                        ? "e.g., AWS, Kubernetes, PostgreSQL, React, DataDog, Snowflake, Salesforce..."
+                        : "e.g., Integrates with Salesforce, HubSpot, Slack. Built on AWS. Supports SSO..."
+                    }
+                    className="w-full h-32 px-4 py-3 border-2 border-zinc-200 rounded-xl text-zinc-900 
+                               outline-none focus:border-emerald-500 transition-all resize-none"
+                    autoFocus
+                />
+                <p className="text-sm text-zinc-500">
+                    💡 Separate with commas or just describe naturally — we'll figure it out
+                </p>
+            </div>
 
             {error && (
                 <div className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">
@@ -307,7 +338,7 @@ function Step3TechStack({ data, onUpdate, onSubmit, onBack, role, isSubmitting, 
                 </button>
 
                 <button
-                    onClick={onSubmit}
+                    onClick={handleSubmit}
                     disabled={isSubmitting}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg
                         ${role === 'HUNTER'
