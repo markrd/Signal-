@@ -1,7 +1,16 @@
 # Signal v2 Platform Roadmap
 
 > **Last Updated:** December 29, 2025  
-> **Status:** Phase 1 ~90% Complete
+> **Status:** Phase 1 ~90% Complete  
+> **Repository:** [github.com/markrd/Signal-](https://github.com/markrd/Signal-)
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|----------|
+| 1.0.0 | Dec 29, 2025 | Initial GitHub push. Removed 91KB legacy code. Established as single source of truth. |
 
 ---
 
@@ -270,11 +279,30 @@ erDiagram
 > [!IMPORTANT]
 > These decisions will shape the platform direction:
 
-1. **Payment Model** — Hold funds in escrow, or pay-on-accept?
+1. ~~**Payment Model**~~ — ✅ **DECIDED:** Hold & Release escrow (funds captured on bid acceptance, released on meeting completion)
 2. **Meeting Format** — Video call only, or also in-person?
 3. **Pricing Control** — Let market set prices, or enforce ranges?
-4. **Verification Depth** — LinkedIn only, or additional checks?
+4. ~~**Verification Method**~~ — ✅ **DECIDED:** LinkedIn OAuth for verified identity
 5. **Mobile Priority** — PWA first, or native apps later?
+
+---
+
+## Architecture Decision Records (ADRs)
+
+### ADR-001: Payment Model — Hold & Release Escrow
+**Date:** December 2025  
+**Status:** Accepted  
+**Decision:** Funds are captured when a bid is accepted and held in escrow. Released to the executive automatically 48h after meeting completion, or immediately upon Hunter verification.
+
+### ADR-002: Identity Verification — LinkedIn OAuth
+**Date:** December 2025  
+**Status:** Accepted  
+**Decision:** Use LinkedIn OAuth for one-click identity verification instead of LLM-based profile scraping. Provides verified company/title data and displays verified badge.
+
+### ADR-003: Onboarding — Hybrid Wizard Model
+**Date:** December 2025  
+**Status:** Accepted  
+**Decision:** Replaced pure conversational LLM onboarding with an 8-step structured wizard that uses AI for enrichment. Better UX, more predictable, LocalStorage persistence for 24h.
 
 ---
 
