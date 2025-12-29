@@ -10,6 +10,8 @@ import { useAuth } from './AuthProvider';
 import { IncomingBidsDashboard } from './IncomingBidsDashboard';
 import { MyMeetingsDashboard } from './MyMeetingsDashboard';
 import { ExecutiveProfile } from './ExecutiveProfile';
+import { ProfileFreshness } from './ProfileFreshness';
+import { ConversationalCompletion } from './ConversationalCompletion';
 
 type Tab = 'overview' | 'offers' | 'meetings' | 'profile';
 
@@ -34,6 +36,7 @@ export function ExecutiveDashboard({ onLogout }: ExecutiveDashboardProps) {
         totalEarnings: 0
     });
     const [loading, setLoading] = useState(true);
+    const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
     useEffect(() => {
         if (user?.id) {
@@ -160,11 +163,18 @@ export function ExecutiveDashboard({ onLogout }: ExecutiveDashboardProps) {
                 {activeTab === 'overview' && (
                     <div className="space-y-8">
                         {/* Welcome Section */}
-                        <div>
-                            <h1 className="text-3xl font-bold text-zinc-900 mb-2">
-                                Welcome back, {profile?.full_name?.split(' ')[0]}
-                            </h1>
-                            <p className="text-zinc-500">Here's what's happening with your profile</p>
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h1 className="text-3xl font-bold text-zinc-900 mb-2">
+                                    Welcome back, {profile?.full_name?.split(' ')[0]}
+                                </h1>
+                                <p className="text-zinc-500">Here's what's happening with your profile</p>
+                            </div>
+                            <ProfileFreshness
+                                lastUpdated={(profile?.metadata as any)?.completedAt as string | undefined}
+                                onUpdateClick={() => setIsUpdatingProfile(true)}
+                                compact
+                            />
                         </div>
 
                         {/* Stats Grid */}
@@ -307,6 +317,12 @@ export function ExecutiveDashboard({ onLogout }: ExecutiveDashboardProps) {
                                     </div>
                                 )}
                             </motion.div>
+
+                            {/* Profile Freshness Card */}
+                            <ProfileFreshness
+                                lastUpdated={(profile?.metadata as any)?.completedAt as string | undefined}
+                                onUpdateClick={() => setIsUpdatingProfile(true)}
+                            />
                         </div>
                     </div>
                 )}
@@ -326,6 +342,30 @@ export function ExecutiveDashboard({ onLogout }: ExecutiveDashboardProps) {
                     <ExecutiveProfile profile={profile} onUpdate={fetchStats} />
                 )}
             </main>
+
+            {/* Profile Update Modal */}
+            {isUpdatingProfile && user && profile && (
+                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+                    <div className="absolute inset-4 bg-white rounded-2xl overflow-hidden shadow-2xl">
+                        <button
+                            onClick={() => setIsUpdatingProfile(false)}
+                            className="absolute top-4 right-4 z-10 p-2 bg-white/80 rounded-full hover:bg-white transition-colors"
+                        >
+                            ✕
+                        </button>
+                        <ConversationalCompletion
+                            userId={user.id}
+                            userEmail={user.email || ''}
+                            userName={profile.full_name || 'there'}
+                            userRole="SIGNAL"
+                            onComplete={() => {
+                                setIsUpdatingProfile(false);
+                                window.location.reload();
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
