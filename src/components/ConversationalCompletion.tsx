@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, CheckCircle, Sparkles, User, Bot, Building2, Briefcase, Target, Cpu, MapPin } from 'lucide-react';
+import { Send, Loader2, CheckCircle, Sparkles, User, Bot, Building2, Briefcase, Target, Cpu, MapPin, ArrowLeft, X } from 'lucide-react';
 import { chatWithLLM, calculateSuggestedPrice } from '../lib/llm';
 import type { ChatMessage, ExtractedData } from '../lib/llm';
 import { supabase } from '../lib/supabase';
@@ -59,8 +59,8 @@ function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardPr
         >
             {/* Header with gradient */}
             <div className={`h-20 relative ${userRole === 'SIGNAL'
-                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
-                    : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                : 'bg-gradient-to-r from-blue-500 to-indigo-500'
                 }`}>
                 {/* Completion ring */}
                 <div className="absolute -bottom-8 left-6">
@@ -186,8 +186,8 @@ function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardPr
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: i * 0.1 }}
                                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'SIGNAL'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-blue-100 text-blue-700'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-blue-100 text-blue-700'
                                             }`}
                                     >
                                         {interest}
@@ -335,13 +335,23 @@ export function ConversationalCompletion({
             const newData = { ...extractedData, ...response.extracted };
             setExtractedData(newData);
 
-            // Check if we have enough data
-            const hasBasicInfo = newData.jobTitle && newData.company;
+            // Check if we have enough data (more lenient)
+            const hasBasicInfo = newData.jobTitle || newData.company;
             const hasFocusInfo = (newData.interests && newData.interests.length > 0) ||
-                (newData.context && newData.context.length > 20);
+                (newData.context && newData.context.length > 10) ||
+                (newData.productOffering) ||
+                (newData.targetIndustry);
 
-            if (hasBasicInfo && hasFocusInfo) {
-                setIsComplete(true);
+            // For HUNTER, just need basic info OR any context
+            // For SIGNAL, need basic + focus
+            if (userRole === 'HUNTER') {
+                if (hasBasicInfo || hasFocusInfo) {
+                    setIsComplete(true);
+                }
+            } else {
+                if (hasBasicInfo && hasFocusInfo) {
+                    setIsComplete(true);
+                }
             }
 
             // Add assistant response
@@ -434,15 +444,33 @@ export function ConversationalCompletion({
         }
     };
 
+    // Allow user to manually mark as done
+    const handleMarkDone = () => {
+        setIsComplete(true);
+    };
+
+    // Check if we have any data at all (to show "I'm done" button)
+    const hasAnyData = extractedData.jobTitle || extractedData.company ||
+        extractedData.context || extractedData.productOffering ||
+        (extractedData.interests && extractedData.interests.length > 0);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-white">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-zinc-100 px-6 py-4">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        {/* Back/Close button - always visible */}
+                        <button
+                            onClick={onComplete}
+                            className="p-2 -ml-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+                            title="Close"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${userRole === 'SIGNAL'
-                                ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
-                                : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                            ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
+                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
                             }`}>
                             <Sparkles className="w-5 h-5 text-white" />
                         </div>
@@ -454,29 +482,42 @@ export function ConversationalCompletion({
                         </div>
                     </div>
 
-                    {isComplete && (
-                        <button
-                            onClick={handleComplete}
-                            disabled={isSaving}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium shadow-lg
-                                       transition-all disabled:opacity-50 ${userRole === 'SIGNAL'
-                                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
-                                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
-                                }`}
-                        >
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle className="w-4 h-4" />
-                                    Complete Profile
-                                </>
-                            )}
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {/* "I'm done" button - shows after any data captured */}
+                        {!isComplete && hasAnyData && (
+                            <button
+                                onClick={handleMarkDone}
+                                className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+                            >
+                                I'm done
+                            </button>
+                        )}
+
+                        {/* Complete button - shows when ready */}
+                        {isComplete && (
+                            <button
+                                onClick={handleComplete}
+                                disabled={isSaving}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium shadow-lg
+                                           transition-all disabled:opacity-50 ${userRole === 'SIGNAL'
+                                        ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
+                                        : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
+                                    }`}
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="w-4 h-4" />
+                                        Complete Profile
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -534,8 +575,8 @@ export function ConversationalCompletion({
                                     className="flex gap-3"
                                 >
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${userRole === 'SIGNAL'
-                                            ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
-                                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                        ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
+                                        : 'bg-gradient-to-br from-blue-500 to-indigo-500'
                                         }`}>
                                         <Bot className="w-4 h-4 text-white" />
                                     </div>
@@ -571,8 +612,8 @@ export function ConversationalCompletion({
                                     onClick={handleSend}
                                     disabled={!input.trim() || isLoading}
                                     className={`px-4 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50 ${userRole === 'SIGNAL'
-                                            ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
-                                            : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
+                                        ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
+                                        : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
                                         }`}
                                 >
                                     <Send className="w-5 h-5" />
