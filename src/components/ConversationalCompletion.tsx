@@ -46,14 +46,14 @@ export function ConversationalCompletion({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Initial greeting
+    // Initial greeting - broad and curious
     useEffect(() => {
         const greeting: Message = {
             id: 'greeting',
             role: 'assistant',
             content: userRole === 'SIGNAL'
-                ? `Hey ${userName.split(' ')[0]}! 👋 Great to have you on Signal.\n\nI'd love to learn more about what you're working on — it helps us connect you with the right vendors.\n\n**What are you currently focused on technology-wise?** Any big initiatives, tools you're evaluating, or challenges you're trying to solve?`
-                : `Hey ${userName.split(' ')[0]}! 👋 Welcome to Signal.\n\nI'm here to help you connect with the right executives. To do that, I need to understand what you offer.\n\n**Tell me about your product/service and who your ideal customers are.**`,
+                ? `Hey ${userName.split(' ')[0]}! 👋 Great to have you on Signal.\n\nI'd love to learn a bit about you and what you're working on. **What's your role, and what are the big priorities keeping you busy right now?**`
+                : `Hey ${userName.split(' ')[0]}! 👋 Welcome to Signal.\n\nTo connect you with the right executives, I'd love to understand your world a bit better. **Tell me about what you do and who you're typically trying to reach.**`,
             timestamp: new Date(),
         };
         setMessages([greeting]);
