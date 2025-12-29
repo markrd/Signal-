@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, CheckCircle, Sparkles, User, Bot } from 'lucide-react';
+import { Send, Loader2, CheckCircle, Sparkles, User, Bot, Building2, Briefcase, Target, Cpu, MapPin } from 'lucide-react';
 import { chatWithLLM, calculateSuggestedPrice } from '../lib/llm';
 import type { ChatMessage, ExtractedData } from '../lib/llm';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,7 @@ import type { Role } from './onboarding/primitives';
 
 // =============================================================================
 // CONVERSATIONAL PROFILE COMPLETION
-// Uses LLM to naturally collect profile data and map to knowledge graph
+// Uses LLM to naturally collect profile data with live profile card
 // =============================================================================
 
 interface ConversationalCompletionProps {
@@ -25,6 +25,242 @@ interface Message {
     content: string;
     timestamp: Date;
 }
+
+// =============================================================================
+// LIVE PROFILE CARD COMPONENT
+// =============================================================================
+
+interface ProfileCardProps {
+    data: ExtractedData;
+    userName: string;
+    userRole: Role;
+    isComplete: boolean;
+}
+
+function LiveProfileCard({ data, userName, userRole, isComplete }: ProfileCardProps) {
+    // Calculate completion percentage
+    const fields = [
+        !!data.fullName || !!userName,
+        !!data.jobTitle,
+        !!data.company,
+        !!data.industries?.length,
+        !!(data.interests?.length || data.context),
+        !!data.techStack?.length,
+    ];
+    const completedFields = fields.filter(Boolean).length;
+    const completionPercent = Math.round((completedFields / fields.length) * 100);
+
+    return (
+        <motion.div
+            className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+        >
+            {/* Header with gradient */}
+            <div className={`h-20 relative ${userRole === 'SIGNAL'
+                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                }`}>
+                {/* Completion ring */}
+                <div className="absolute -bottom-8 left-6">
+                    <div className="relative">
+                        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="16" fill="white" className="shadow-lg" />
+                            <circle
+                                cx="18" cy="18" r="14"
+                                fill="none"
+                                stroke="#e5e7eb"
+                                strokeWidth="2"
+                            />
+                            <motion.circle
+                                cx="18" cy="18" r="14"
+                                fill="none"
+                                stroke={userRole === 'SIGNAL' ? '#10b981' : '#3b82f6'}
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeDasharray={`${completionPercent * 0.88} 88`}
+                                initial={{ strokeDasharray: '0 88' }}
+                                animate={{ strokeDasharray: `${completionPercent * 0.88} 88` }}
+                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-bold text-zinc-700">{completionPercent}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Profile content */}
+            <div className="pt-12 pb-6 px-6">
+                {/* Name & Title */}
+                <div className="mb-4">
+                    <AnimatePresence mode="wait">
+                        <motion.h3
+                            key={data.fullName || userName}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-lg font-bold text-zinc-900"
+                        >
+                            {data.fullName || userName}
+                        </motion.h3>
+                    </AnimatePresence>
+
+                    <AnimatePresence mode="wait">
+                        {data.jobTitle ? (
+                            <motion.p
+                                key={data.jobTitle}
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="text-sm text-zinc-600 flex items-center gap-1"
+                            >
+                                <Briefcase className="w-3 h-3" />
+                                {data.jobTitle}
+                            </motion.p>
+                        ) : (
+                            <motion.p className="text-sm text-zinc-400 italic">
+                                Job title...
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Company & Industry */}
+                <div className="space-y-2 mb-4">
+                    <AnimatePresence mode="wait">
+                        {data.company ? (
+                            <motion.div
+                                key={data.company}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="flex items-center gap-2 text-sm"
+                            >
+                                <Building2 className="w-4 h-4 text-zinc-400" />
+                                <span className="text-zinc-700">{data.company}</span>
+                            </motion.div>
+                        ) : (
+                            <div className="flex items-center gap-2 text-sm text-zinc-300">
+                                <Building2 className="w-4 h-4" />
+                                <span className="italic">Company...</span>
+                            </div>
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence mode="wait">
+                        {data.industries?.length ? (
+                            <motion.div
+                                key={data.industries[0]}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="flex items-center gap-2 text-sm"
+                            >
+                                <MapPin className="w-4 h-4 text-zinc-400" />
+                                <span className="text-zinc-700">{data.industries[0]}</span>
+                            </motion.div>
+                        ) : (
+                            <div className="flex items-center gap-2 text-sm text-zinc-300">
+                                <MapPin className="w-4 h-4" />
+                                <span className="italic">Industry...</span>
+                            </div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-zinc-100 my-4" />
+
+                {/* Focus Areas */}
+                <div className="mb-4">
+                    <div className="flex items-center gap-1 text-xs font-medium text-zinc-500 uppercase mb-2">
+                        <Target className="w-3 h-3" />
+                        Focus Areas
+                    </div>
+                    <AnimatePresence mode="popLayout">
+                        {data.interests?.length ? (
+                            <motion.div className="flex flex-wrap gap-1">
+                                {data.interests.map((interest, i) => (
+                                    <motion.span
+                                        key={interest}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: i * 0.1 }}
+                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'SIGNAL'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'bg-blue-100 text-blue-700'
+                                            }`}
+                                    >
+                                        {interest}
+                                    </motion.span>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <p className="text-xs text-zinc-300 italic">Tell me what you're focused on...</p>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Tech Stack */}
+                <div className="mb-4">
+                    <div className="flex items-center gap-1 text-xs font-medium text-zinc-500 uppercase mb-2">
+                        <Cpu className="w-3 h-3" />
+                        Tech Stack
+                    </div>
+                    <AnimatePresence mode="popLayout">
+                        {data.techStack?.length ? (
+                            <motion.div className="flex flex-wrap gap-1">
+                                {data.techStack.map((tech, i) => (
+                                    <motion.span
+                                        key={tech}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: i * 0.1 }}
+                                        className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium"
+                                    >
+                                        {tech}
+                                    </motion.span>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <p className="text-xs text-zinc-300 italic">Technologies you use...</p>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Context preview */}
+                {data.context && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="mt-4 p-3 bg-zinc-50 rounded-lg"
+                    >
+                        <p className="text-xs text-zinc-600 line-clamp-3">
+                            "{data.context}"
+                        </p>
+                    </motion.div>
+                )}
+
+                {/* Complete button (visible when ready) */}
+                {isComplete && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-4 text-center"
+                    >
+                        <div className="flex items-center justify-center gap-1 text-sm text-emerald-600 font-medium">
+                            <Sparkles className="w-4 h-4" />
+                            Profile ready!
+                        </div>
+                    </motion.div>
+                )}
+            </div>
+        </motion.div>
+    );
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export function ConversationalCompletion({
     userId,
@@ -122,7 +358,7 @@ export function ConversationalCompletion({
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "I had a little trouble understanding that. Could you tell me more about what technologies or initiatives you're focused on?",
+                content: "I had a little trouble with that. Could you tell me a bit more about what you're working on?",
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -165,7 +401,6 @@ export function ConversationalCompletion({
                     extractedData.buyingStage
                 );
 
-                // Create listing description from context/interests
                 const description = extractedData.context ||
                     extractedData.interests?.join(', ') ||
                     'Available for meetings';
@@ -188,7 +423,6 @@ export function ConversationalCompletion({
             onComplete();
         } catch (error) {
             console.error('Save error:', error);
-            // Still try to complete
             onComplete();
         }
     };
@@ -201,18 +435,21 @@ export function ConversationalCompletion({
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-white flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-white">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-zinc-100 px-6 py-4">
-                <div className="max-w-2xl mx-auto flex items-center justify-between">
+                <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${userRole === 'SIGNAL'
+                                ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
+                                : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                            }`}>
                             <Sparkles className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <p className="font-semibold text-zinc-900">Complete your profile</p>
+                            <p className="font-semibold text-zinc-900">Build your profile</p>
                             <p className="text-sm text-zinc-500">
-                                {isComplete ? '✨ Ready to save!' : 'Tell me about your focus areas'}
+                                {isComplete ? '✨ Looking good!' : 'Tell me about yourself'}
                             </p>
                         </div>
                     </div>
@@ -221,9 +458,11 @@ export function ConversationalCompletion({
                         <button
                             onClick={handleComplete}
                             disabled={isSaving}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-cyan-500 
-                                       text-white rounded-xl font-medium shadow-lg shadow-emerald-500/30
-                                       hover:opacity-90 transition-all disabled:opacity-50"
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium shadow-lg
+                                       transition-all disabled:opacity-50 ${userRole === 'SIGNAL'
+                                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
+                                }`}
                         >
                             {isSaving ? (
                                 <>
@@ -241,128 +480,120 @@ export function ConversationalCompletion({
                 </div>
             </header>
 
-            {/* Messages */}
-            <main className="flex-1 overflow-y-auto px-6 py-6">
-                <div className="max-w-2xl mx-auto space-y-4">
-                    <AnimatePresence mode="popLayout">
-                        {messages.map((message) => (
-                            <motion.div
-                                key={message.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                            >
-                                {/* Avatar */}
-                                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center
-                                    ${message.role === 'assistant'
-                                        ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
-                                        : 'bg-zinc-200'
-                                    }`}
+            {/* Main content - two column layout */}
+            <div className="max-w-6xl mx-auto px-6 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Chat column */}
+                    <div className="lg:col-span-2 flex flex-col h-[calc(100vh-180px)]">
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                            <AnimatePresence mode="popLayout">
+                                {messages.map((message) => (
+                                    <motion.div
+                                        key={message.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0 }}
+                                        className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center
+                                            ${message.role === 'assistant'
+                                                ? userRole === 'SIGNAL'
+                                                    ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
+                                                    : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                                : 'bg-zinc-200'
+                                            }`}
+                                        >
+                                            {message.role === 'assistant'
+                                                ? <Bot className="w-4 h-4 text-white" />
+                                                : <User className="w-4 h-4 text-zinc-600" />
+                                            }
+                                        </div>
+
+                                        <div className={`max-w-[80%] rounded-2xl px-4 py-3
+                                            ${message.role === 'assistant'
+                                                ? 'bg-white border border-zinc-100 shadow-sm'
+                                                : userRole === 'SIGNAL'
+                                                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white'
+                                                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white'
+                                            }`}
+                                        >
+                                            <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                                                {message.content}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+
+                            {/* Typing indicator */}
+                            {isLoading && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex gap-3"
                                 >
-                                    {message.role === 'assistant'
-                                        ? <Bot className="w-4 h-4 text-white" />
-                                        : <User className="w-4 h-4 text-zinc-600" />
-                                    }
-                                </div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${userRole === 'SIGNAL'
+                                            ? 'bg-gradient-to-br from-emerald-500 to-cyan-500'
+                                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                        }`}>
+                                        <Bot className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div className="bg-white border border-zinc-100 rounded-2xl px-4 py-3 shadow-sm">
+                                        <div className="flex gap-1">
+                                            <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
 
-                                {/* Message bubble */}
-                                <div className={`max-w-[80%] rounded-2xl px-4 py-3
-                                    ${message.role === 'assistant'
-                                        ? 'bg-white border border-zinc-100 shadow-sm'
-                                        : 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white'
-                                    }`}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <div className="sticky bottom-0 bg-gradient-to-br from-zinc-50 to-white pt-4">
+                            <div className="flex gap-3">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Type your response..."
+                                    disabled={isLoading}
+                                    className="flex-1 px-4 py-3 bg-white border border-zinc-200 rounded-xl outline-none 
+                                               focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 
+                                               transition-all disabled:bg-zinc-50"
+                                />
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || isLoading}
+                                    className={`px-4 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50 ${userRole === 'SIGNAL'
+                                            ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-emerald-500/30'
+                                            : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-blue-500/30'
+                                        }`}
                                 >
-                                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                                        {message.content}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-
-                    {/* Typing indicator */}
-                    {isLoading && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex gap-3"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-                                <Bot className="w-4 h-4 text-white" />
+                                    <Send className="w-5 h-5" />
+                                </button>
                             </div>
-                            <div className="bg-white border border-zinc-100 rounded-2xl px-4 py-3 shadow-sm">
-                                <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <span className="w-2 h-2 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    <div ref={messagesEndRef} />
-                </div>
-            </main>
-
-            {/* Input */}
-            <footer className="sticky bottom-0 bg-white border-t border-zinc-100 px-6 py-4">
-                <div className="max-w-2xl mx-auto">
-                    <div className="flex gap-3">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Type your response..."
-                            disabled={isLoading}
-                            className="flex-1 px-4 py-3 border border-zinc-200 rounded-xl outline-none 
-                                       focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 
-                                       transition-all disabled:bg-zinc-50"
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isLoading}
-                            className="px-4 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 
-                                       text-white rounded-xl shadow-lg shadow-emerald-500/30
-                                       hover:opacity-90 transition-all disabled:opacity-50"
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
+                        </div>
                     </div>
 
-                    {/* Extracted info preview */}
-                    {(extractedData.jobTitle || extractedData.company || extractedData.interests?.length) && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="mt-3 flex flex-wrap gap-2"
-                        >
-                            {extractedData.jobTitle && (
-                                <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                                    {extractedData.jobTitle}
-                                </span>
-                            )}
-                            {extractedData.company && (
-                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                    {extractedData.company}
-                                </span>
-                            )}
-                            {extractedData.interests?.map((interest) => (
-                                <span key={interest} className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                                    {interest}
-                                </span>
-                            ))}
-                            {extractedData.techStack?.slice(0, 3).map((tech) => (
-                                <span key={tech} className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                                    {tech}
-                                </span>
-                            ))}
-                        </motion.div>
-                    )}
+                    {/* Profile card column */}
+                    <div className="hidden lg:block">
+                        <div className="sticky top-24">
+                            <LiveProfileCard
+                                data={extractedData}
+                                userName={userName}
+                                userRole={userRole}
+                                isComplete={isComplete}
+                            />
+                        </div>
+                    </div>
                 </div>
-            </footer>
+            </div>
         </div>
     );
 }
